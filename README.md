@@ -37,9 +37,9 @@ Requires the following dependencies:
 
 ```lua
 -- automatically bootstrap alpacka
-local alpacka_path = vim.fn.stdpath('data') .. 'site/pack/alpacka/opt/alpacka.nvim')
+local alpacka_path = vim.fn.stdpath('data') .. '/site/pack/alpacka/opt/alpacka.nvim'
 if not vim.uv.fs_stat(alpacka_path) then
-    local out = vim.fn.system({
+    local out = vim.system({
         'git',
         'clone',
         '--filter=blob:none',
