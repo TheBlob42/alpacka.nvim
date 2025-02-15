@@ -65,6 +65,12 @@ require('alpacka').setup {
   -- full git URLs are supported (e.g. for non-Github repositories)
   'https://github.com/tpope/vim-sensible.git',
 
+  -- specify a git branch that should be checked out
+  {
+    'echasnovski/mini.nvim',
+    branch = 'stable'
+  },
+
   -- local plugins can be loaded as well
   {
     'my-local-plugin',
@@ -116,8 +122,16 @@ Specify the directory for a local plugin
 Local plugins should be managed by you and therefore come with the following "restrictions":
 
 - Not added to the lock file
-- The `build` function will be ignored by alpacka
+- The `build` function will be ignored
+- The `branch` property will be ignored
 - Updates have to be done manually
+
+### `branch`
+
+Define a specific git branch that should be checked out
+
+> [!IMPORTANT]  
+> If the plugin is already installed simply specifying this property will not switch the branch automatically. Either update the plugin or reinstall it for the change to take place
 
 ### `build`
 
@@ -183,5 +197,5 @@ Use the `:Alpacka` command to open a status window with more information about y
 
 ## TODO
 
-- [ ] Support for git branches and tags
+- [ ] Support for git ~branches and~ tags
 - [ ] Write help files
