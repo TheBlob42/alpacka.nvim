@@ -130,8 +130,7 @@ Local plugins should be managed by you and therefore come with the following "re
 
 Define a specific git branch that should be checked out
 
-> [!IMPORTANT]  
-> If the plugin is already installed simply specifying this property will not switch the branch automatically. Either update the plugin or reinstall it for the change to take place
+**NOTE**: If the plugin is already installed simply specifying this property will not switch the branch automatically. Either update the plugin or reinstall it for the change to take place
 
 ### `build`
 
