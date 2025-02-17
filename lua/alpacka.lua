@@ -745,10 +745,18 @@ function M.status()
     end, { buffer = info_buf, desc = 'Clean outdated entries from the lockfile' })
     vim.keymap.set('n', '<C-b>', function()
         local name = current_plugin_name()
-        if name then
-            local spec = alpacka_plugins[name]
-            if spec and spec.build and not spec.dir then
+        local spec = alpacka_plugins[name]
+        if spec then
+            if spec.dir then
+                vim.notify('Build functions for local plugins are ignored', vim.log.levels.WARN, {})
+                return
+            end
+
+            if spec.build then
                 spec.build(name, spec)
+                vim.notify('Build function for "'..name..'" was executed', vim.log.levels.INFO, {})
+            else
+                vim.notify('No build function exists for "'..name..'"', vim.log.levels.WARN, {})
             end
         end
     end, { buffer = info_buf, desc = 'Retrigger the build for the plugin under the cursor' })
