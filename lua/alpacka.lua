@@ -11,6 +11,8 @@ local M = {}
 ---@field init fun(name: string, spec: AlpackaPluginSpec)? Function to call before the plugin will be loaded
 ---@field dir string? Local directory to use instead of cloning the plugin from git
 ---@field branch string? The GIT branch that should be cloned
+---@field commit string? The specific commit that should be checked out
+---@field tag string? The GIT tag that should be checked out
 
 ---@class AlpackaLockFileSpec
 ---@field hash string Git hash of the plugin
@@ -235,17 +237,28 @@ local function git_is_ancestor(plugin, commit, maybe_parent)
         { text = true, cwd = get_plugin_path(plugin) }):wait().code == 0
 end
 
----Check out the specified `hash` for the plugin `name`
----If `hash` is omitted this will check out the latest commit
----If `branch` is specified use it instead of the default branch
+---Call "git checkout" for the plugin `name` based on the given `spec`
+---- If `spec.commit` is given, check out the specific commit
+---- Else if `spec.tag` is given, check out the specific GIT tag
+---- Else if `spec.branch` is given, checkout the latest commit from this branch
+---- Else check out the latest default commit ("origin/HEAD")
 ---@param name string The plugin name
----@param hash string? The git hash to check out. Omit this to update to the latest commit
----@param branch string? Branch to use if `hash` is omitted
-local function git_checkout(name, hash, branch)
-    local target = hash or ('origin/'..(branch or 'HEAD'))
-    vim.system(
+---@param spec? { commit?: string, tag?: string, branch?: string } Specification what should be checked out
+local function git_checkout(name, spec)
+    spec = spec or {}
+    -- commit > tag > branch > default branch
+    local target = spec.commit
+        or (spec.tag and 'tags/'..spec.tag)
+        or (spec.branch and 'origin/'..spec.branch)
+        or 'origin/HEAD'
+
+    local out = vim.system(
         { 'git', 'checkout', '--recurse-submodules', target },
         { text = true, cwd = get_plugin_path(name) }):wait()
+
+    if out.code ~= 0 then
+        vim.notify('Error when calling "git checkout '..target..'":\n'..out.stderr, vim.log.levels.ERROR, {})
+    end
 end
 
 ---Fetch new git commits remotely available for the plugin `name` asynchronously and trigger the given `callback` function afterwards
@@ -257,7 +270,13 @@ local function git_commits(name, callback)
             { 'git', 'fetch', '--recurse-submodules=yes' },
             { text = true, cwd = get_plugin_path(name) })
 
-        local target = 'origin/' .. (alpacka_plugins[name].branch or 'HEAD')
+        local spec = alpacka_plugins[name]
+        -- commit > tag > branch > default branch
+        local target = spec.commit
+            or (spec.tag and 'tags/'..spec.tag)
+            or (spec.branch and 'origin/'..spec.branch)
+            or 'origin/HEAD'
+
         local out = sys(
             { 'git', 'log', '--pretty=format:%h %s (%cs)', 'HEAD..'..target },
             { text = true, cwd = get_plugin_path(name) })
@@ -340,7 +359,7 @@ function M.restore(...)
                 return false, '- "' .. name .. '" is in locked state already'
             end
 
-            git_checkout(name, lock[name].hash)
+            git_checkout(name, { commit = lock[name].hash })
             return true
         end)
 end
@@ -353,7 +372,7 @@ function M.update(...)
             local spec = alpacka_plugins[name]
 
             local before_hash = git_get_hash(name)
-            git_checkout(name, nil, spec.branch)
+            git_checkout(name, spec)
             local success = before_hash ~= git_get_hash(name)
 
             -- if the update changed something retrigger the `build` function
@@ -474,7 +493,11 @@ function M.setup(plugins)
                     goto continue
                 end
 
-                git_checkout(name, vim.tbl_get(lock, name, 'hash'), spec.branch)
+                git_checkout(name, {
+                    commit = vim.tbl_get(lock, name, 'hash') or spec.commit,
+                    tag = spec.tag,
+                    branch = spec.branch,
+                })
 
                 call_build = spec.build ~= nil
             end
@@ -557,14 +580,18 @@ local function gen_alpacka_status()
         else
             local comment = ''
 
-            if spec.branch then
+            if spec.commit then
+                comment = comment .. ' commit '..spec.commit
+            elseif spec.tag then
+                comment = comment .. ' tag '..spec.tag
+            elseif spec.branch then
                 comment = comment .. ' branch '..spec.branch
             end
 
             local hash = git_get_hash(name)
             if hash ~= lock[name].hash then
                 local newer = git_is_ancestor(name, hash, lock[name].hash)
-                local info = newer and ' (newer commit)' or ''
+                local info = newer and ' (newer)' or ''
                 comment = comment .. ' MODIFIED' .. info
             end
 

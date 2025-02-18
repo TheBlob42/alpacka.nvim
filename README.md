@@ -65,6 +65,18 @@ require('alpacka').setup {
   -- full git URLs are supported (e.g. for non-Github repositories)
   'https://github.com/tpope/vim-sensible.git',
 
+  -- define a specific commit that should be checked out
+  {
+    'eraserhd/parinfer-rust',
+    commit = '327fc9a'
+  },
+
+  -- set a git tag that should be checked out
+  {
+    'folke/noice.nvim',
+    tag = 'v4.7.0'
+  },
+
   -- specify a git branch that should be checked out
   {
     'echasnovski/mini.nvim',
@@ -126,11 +138,17 @@ Local plugins should be managed by you and therefore come with the following "re
 - The `branch` property will be ignored
 - Updates have to be done manually
 
-### `branch`
+### `commit`, `tag` & `branch`
 
-Define a specific git branch that should be checked out
+Define a specific reference that should be checked out for the plugin. While these are separate properties **only one** of them will be applied in cases where you provide more than one. The first item from the following table will be used (top to bottom) all others will be ignored:
 
-**NOTE**: If the plugin is already installed simply specifying this property will not switch the branch automatically. Either update the plugin or reinstall it for the change to take place
+| Property | Description                                 |
+| ---      | ---                                         |
+| `commit` | The specific GIT commit will be checked out |
+| `tag`    | The specific GIT tag will be checked out    |
+| `branch` | The specific GIT branch will be checked out |
+
+**NOTE**: If the plugin is already installed simply specifying any of these properties will not update it automatically. Either update the plugin manually or reinstall it for the desired change to take place
 
 ### `build`
 
@@ -196,5 +214,5 @@ Use the `:Alpacka` command to open a status window with more information about y
 
 ## TODO
 
-- [ ] Support for git ~branches and~ tags
+- [x] Support for git branches and tags
 - [ ] Write help files

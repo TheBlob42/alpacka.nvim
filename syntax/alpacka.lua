@@ -2,7 +2,7 @@ if vim.b.current_syntax then
     return
 end
 
-vim.cmd([[syntax keyword AlpackaLabel branch dir contained]])
+vim.cmd([[syntax keyword AlpackaLabel commit tag branch dir contained]])
 vim.cmd([[syntax keyword AlpackaModified MODIFIED contained]])
 vim.cmd([[syntax match AlpackaPluginName "^> \zs\S\+"]])
 vim.cmd([[syntax match AlpackaHelpTag " \u[a-zA-Z ]* \[.\{1,5}\] "]])
