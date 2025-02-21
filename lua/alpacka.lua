@@ -226,6 +226,38 @@ local function git_get_hash(name)
     return hash
 end
 
+---Get the current git tag for the plugin `name` if available
+---@param name string The name of the plugin
+---@return string? tag The git tag found
+local function git_get_tag(name)
+    local out = vim.system(
+        { 'git', 'describe', '--tags', '--exact-match' },
+        { text = true, cwd = get_plugin_path(name) }):wait()
+
+    if out.code == 0 then
+        return out.stdout:sub(1, -2) -- strip newline from the end
+    end
+end
+
+---Check for plugin `name` if the given `commit` is part of the given `branch`
+---@param name string The name of the plugin
+---@param commit string The commit hash
+---@param branch string The branch name
+---@return boolean result
+local function git_belongs_to_branch(name, commit, branch)
+    local out = vim.system(
+        { 'git', 'branch', '-a', '--contains', commit },
+        { text = true, cwd = get_plugin_path(name) }):wait()
+
+    for line in vim.gsplit(out.stdout, '\n') do
+        if line:match('.*/'..branch..'$') then
+            return true
+        end
+    end
+
+    return false
+end
+
 ---Check is `commit` is an ancestor of `maybe_parent`
 ---@param plugin string
 ---@param commit string
@@ -576,27 +608,33 @@ local function gen_alpacka_status()
         local entry = '> ' .. name
 
         if spec.dir then
-            entry = entry .. ' ;; dir ' .. spec.dir
+            entry = entry .. ' ; dir ' .. spec.dir
         else
+            local hash = git_get_hash(name)
             local comment = ''
 
             if spec.commit then
-                comment = comment .. ' commit '..spec.commit
+                local modified = hash == spec.commit and '' or '*'
+                comment = comment .. ' commit'..modified..' '..spec.commit
             elseif spec.tag then
-                comment = comment .. ' tag '..spec.tag
+                local modified = git_get_tag(name) == spec.tag and '' or '*'
+                comment = comment .. ' tag'..modified..' '..spec.tag
             elseif spec.branch then
-                comment = comment .. ' branch '..spec.branch
+                local modified = git_belongs_to_branch(name, hash, spec.branch) and '' or '*'
+                comment = comment .. ' branch'..modified..' '..spec.branch
             end
 
-            local hash = git_get_hash(name)
             if hash ~= lock[name].hash then
                 local newer = git_is_ancestor(name, hash, lock[name].hash)
                 local info = newer and ' (newer)' or ''
-                comment = comment .. ' MODIFIED' .. info
+                if comment ~= '' then
+                    comment = comment .. ' -'
+                end
+                comment = comment .. ' Lock*' .. info
             end
 
             if comment ~= '' then
-                entry = entry .. ' ;;' .. comment
+                entry = entry .. ' ;' .. comment
             end
         end
 
@@ -615,7 +653,7 @@ local function gen_alpacka_status()
         'Loaded (' .. vim.tbl_count(loaded) .. ')',
         '',
         ' Check [c]   Update [u]   Restore [r]   Lock [o]   Open Directory [<C-o>]   Retrigger Build [<C-b>] ',
-        ';; use upper case letters for check, update, restore & lock to execute them on all plugins',
+        '; use upper case letters for check, update, restore & lock to execute them on all plugins',
         '',
     }
     for _, s in ipairs(loaded) do
@@ -662,6 +700,7 @@ function M.status()
     vim.api.nvim_buf_set_lines(info_buf, 0, -1, false, gen_alpacka_status())
     vim.api.nvim_buf_set_option(info_buf, 'syntax', 'alpacka')
     vim.api.nvim_buf_set_option(info_buf, 'modifiable', false)
+    vim.api.nvim_buf_set_option(info_buf, 'iskeyword', vim.api.nvim_buf_get_option(info_buf, 'iskeyword')..',*')
     vim.api.nvim_open_win(info_buf, true, {
         relative = 'editor',
         title = ' Alpacka Plugin Overview ',
