@@ -191,6 +191,21 @@ end
 --  Git
 -- ~~~~~
 
+---Extract the specified reference for the plugin `spec`
+---If there are multiple properties defined prioritize on the following order:
+---- commit
+---- tag
+---- branch
+---Otherwise it will fall back to the origin default branch ("origin/HEAD")
+---@param spec AlpackaPluginSpec The plugin spec definition to check
+---@return string ref
+local function get_plugin_ref(spec)
+    return spec.commit
+        or (spec.tag and 'tags/'..spec.tag)
+        or (spec.branch and 'origin/'..spec.branch)
+        or 'origin/HEAD'
+end
+
 ---Get the `path` for the plugin name by `name`
 ---Does NOT check if the `path` is valid and existing
 ---@param name string
@@ -278,11 +293,7 @@ end
 ---@param spec? { commit?: string, tag?: string, branch?: string } Specification what should be checked out
 local function git_checkout(name, spec)
     spec = spec or {}
-    -- commit > tag > branch > default branch
-    local target = spec.commit
-        or (spec.tag and 'tags/'..spec.tag)
-        or (spec.branch and 'origin/'..spec.branch)
-        or 'origin/HEAD'
+    local target = get_plugin_ref(spec)
 
     local out = vim.system(
         { 'git', 'checkout', '--recurse-submodules', target },
@@ -302,15 +313,8 @@ local function git_commits(name, callback)
             { 'git', 'fetch', '--recurse-submodules=yes' },
             { text = true, cwd = get_plugin_path(name) })
 
-        local spec = alpacka_plugins[name]
-        -- commit > tag > branch > default branch
-        local target = spec.commit
-            or (spec.tag and 'tags/'..spec.tag)
-            or (spec.branch and 'origin/'..spec.branch)
-            or 'origin/HEAD'
-
         local out = sys(
-            { 'git', 'log', '--pretty=format:%h %s (%cs)', 'HEAD..'..target },
+            { 'git', 'log', '--pretty=format:%h %s (%cs)', 'HEAD..'..get_plugin_ref(alpacka_plugins[name]) },
             { text = true, cwd = get_plugin_path(name) })
 
         local commits = vim.iter(vim.split(out.stdout, '\n'))
