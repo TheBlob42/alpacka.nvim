@@ -15,7 +15,7 @@ local M = {}
 ---@field tag string? The GIT tag that should be checked out
 
 ---@class AlpackaLockFileSpec
----@field hash string Git hash of the plugin
+---@field commit string Git commit hash of the plugin
 
 -- ~~~~~~~~~~~~~~~~~~
 --  Script Variables
@@ -178,7 +178,7 @@ local function write_lockfile()
     local keys = vim.tbl_keys(lock)
     table.sort(keys) -- ensure same order, minimize git diff
     for i, k in ipairs(keys) do
-        f:write(('  "%s": { "hash": "%s" }'):format(k, lock[k].hash))
+        f:write(('  "%s": { "commit": "%s" }'):format(k, lock[k].commit))
         if i ~= vim.tbl_count(keys) then
             f:write(',\n')
         end
@@ -219,7 +219,7 @@ end
 ---Extract the current git commit hash of the given plugin
 ---@param name string
 ---@return string
-local function git_get_hash(name)
+local function git_get_commit(name)
     local hash = vim.system(
         { 'git', 'rev-parse', 'HEAD' },
         { text = true, cwd = get_plugin_path(name) }):wait().stdout:gsub('\n$', '')
@@ -386,12 +386,12 @@ end
 function M.restore(...)
     process_plugins('restored', {...}, true,
         function(name)
-            local diff = git_get_hash(name) ~= lock[name].hash
+            local diff = git_get_commit(name) ~= lock[name].commit
             if not diff then
                 return false, '- "' .. name .. '" is in locked state already'
             end
 
-            git_checkout(name, { commit = lock[name].hash })
+            git_checkout(name, lock[name])
             return true
         end)
 end
@@ -403,9 +403,9 @@ function M.update(...)
         function(name)
             local spec = alpacka_plugins[name]
 
-            local before_hash = git_get_hash(name)
+            local commit_before = git_get_commit(name)
             git_checkout(name, spec)
-            local success = before_hash ~= git_get_hash(name)
+            local success = commit_before ~= git_get_commit(name)
 
             -- if the update changed something retrigger the `build` function
             if success and spec.build then
@@ -421,9 +421,9 @@ end
 function M.lock(...)
     process_plugins('locked', {...}, true,
         function(name)
-            local hash = git_get_hash(name)
-            local modified = lock[name].hash ~= hash
-            lock[name].hash = hash
+            local commit = git_get_commit(name)
+            local modified = lock[name].commit ~= commit
+            lock[name].commit = commit
             return modified
         end)
     write_lockfile()
@@ -526,7 +526,7 @@ function M.setup(plugins)
                 end
 
                 git_checkout(name, {
-                    commit = vim.tbl_get(lock, name, 'hash') or spec.commit,
+                    commit = vim.tbl_get(lock, name, 'commit') or spec.commit,
                     tag = spec.tag,
                     branch = spec.branch,
                 })
@@ -536,7 +536,7 @@ function M.setup(plugins)
 
             if not lock[name] then
                 lock[name] = {
-                    hash = git_get_hash(name)
+                    commit = git_get_commit(name)
                 }
             end
 
@@ -610,22 +610,22 @@ local function gen_alpacka_status()
         if spec.dir then
             entry = entry .. ' ; dir ' .. spec.dir
         else
-            local hash = git_get_hash(name)
+            local commit = git_get_commit(name)
             local comment = ''
 
             if spec.commit then
-                local modified = hash == spec.commit and '' or '*'
+                local modified = commit == spec.commit and '' or '*'
                 comment = comment .. ' commit'..modified..' '..spec.commit
             elseif spec.tag then
                 local modified = git_get_tag(name) == spec.tag and '' or '*'
                 comment = comment .. ' tag'..modified..' '..spec.tag
             elseif spec.branch then
-                local modified = git_belongs_to_branch(name, hash, spec.branch) and '' or '*'
+                local modified = git_belongs_to_branch(name, commit, spec.branch) and '' or '*'
                 comment = comment .. ' branch'..modified..' '..spec.branch
             end
 
-            if hash ~= lock[name].hash then
-                local newer = git_is_ancestor(name, hash, lock[name].hash)
+            if commit ~= lock[name].commit then
+                local newer = git_is_ancestor(name, commit, lock[name].commit)
                 local info = newer and ' (newer)' or ''
                 if comment ~= '' then
                     comment = comment .. ' -'
