@@ -4,23 +4,23 @@ A simple plugin manager for Neovim
 
 ## Motivation
 
-Moving from [vim-plug](https://github.com/junegunn/vim-plug) to [packer.nvim](https://github.com/wbthomason/packer.nvim) because of Lua and then on to [lazy.nvim](https://github.com/folke/lazy.nvim) because of the support for a lockfile showed me what I expect of a plugin manager and what not. And when I ran into issues with the `lazy-lock.json` file not behaving as I would want and expect (see [here](https://github.com/folke/lazy.nvim/issues/1787) and [here](https://github.com/folke/lazy.nvim/issues/1740) for examples) I took the chance to create my own simple solution tailored toward my own needs:
+Moving from [vim-plug](https://github.com/junegunn/vim-plug) to [packer.nvim](https://github.com/wbthomason/packer.nvim) for Lua support and then to [lazy.nvim](https://github.com/folke/lazy.nvim) for its lockfile feature refined my expectations of a plugin manager for Neovim. However, when I encountered issues with the `lazy-lock.json` file not behaving as I expected (see [here](https://github.com/folke/lazy.nvim/issues/1787) and [here](https://github.com/folke/lazy.nvim/issues/1740) for examples) I took the opportunity to create a simpler solution tailored toward my personal needs:
 
-- I don't care about lazy loading and my startuptime
+- I don't care about lazy loading and startup time optimizations
 - I don't need support for [luarocks](https://luarocks.org/)
-- I value determinism and simplicity higher than speed
+- I prioritize determinism and simplicity over raw speed
 
 ### Features
 
-- Use the existing `packages` feature of Neovim
+- Leverage Neovim's built-in `packages` system
 - Install and load plugins synchronously
-  - Always loaded exactly in the order they are defined
-  - Simple dependency management
+  - Load exactly in the order of definition
+  - Simple and predictable dependency management
 - Provide hook functions for building, initializing and configuring plugins
-- A lockfile: `alpacka-lock.json`
-  - Keep track of the commits of installed plugins
+- Includes a lockfile (`alpacka-lock.json`)
+  - Track commits of installed plugins
   - Sync your state to different machines
-  - Only manual updates for full control
+  - Only manual file updates for full control
 
 ### Non-Features
 
@@ -140,7 +140,7 @@ Local plugins should be managed by you and therefore come with the following "re
 
 ### `commit`, `tag` & `branch`
 
-Define a specific reference that should be checked out for the plugin. While these are separate properties **only one** of them will be applied in cases where you provide more than one. The first item from the following table will be used (top to bottom) all others will be ignored:
+Define a specific reference that should be checked out for a plugin. While these are separate properties **only one** of them will be applied in cases where you provide more than one. The first item from the following table will be used (top to bottom) all others will be ignored:
 
 | Property | Description                                 |
 | ---      | ---                                         |
@@ -148,13 +148,13 @@ Define a specific reference that should be checked out for the plugin. While the
 | `tag`    | The specific GIT tag will be checked out    |
 | `branch` | The specific GIT branch will be checked out |
 
-**NOTE**: If the plugin is already installed simply specifying any of these properties will not update it automatically. Either update the plugin manually or reinstall it for the desired change to take place
+**NOTE**: If a plugin is already installed simply specifying any of these properties will not update it automatically. Either update the plugin manually or reinstall it for the desired change to take place
 
 ### `build`
 
 Function to trigger after a plugin has either been cloned or updated. Use this to download assets, build binaries etc.
 
-- Called after the plugin has been loaded
+- Called after a plugin has been loaded
   - **After** the `init` function
   - **Before** the `config` function
 - Switches the current working directory temporarily to the plugin folder
@@ -175,11 +175,11 @@ Function to trigger after a plugin has either been cloned or updated. Use this t
 
 ### `init`
 
-Function to setup anything **before** the plugin is being loaded. Use this to setup global variables or other prerequisites. Receives the plugin name and spec as parameters
+Function to setup anything **before** a plugin is being loaded. Use this to setup global variables or other prerequisites. Receives the plugin name and spec as parameters
 
 ### `config`
 
-Function to setup any configuration **after** the plugin has been loaded. This is the place for setup instructions (usually by calling  a `setup` function), creating keybindings and so on. Receives the plugin name and spec as parameters
+Function to setup any configuration **after** a plugin has been loaded. This is the place for setup instructions (usually by calling  a `setup` function), creating keybindings and so on. Receives the plugin name and spec as parameters
 
 ### `load`
 
@@ -196,15 +196,18 @@ If the function returns `true` the package will be loaded via `packadd`. This is
 
 Use the `:Alpacka` command to open a status window with more information about your configured plugins:
 
-![alpacka-status-window](https://github.com/user-attachments/assets/6926e975-3568-49a8-9144-786138b16b00)
+![alpacka-status-window](https://github.com/user-attachments/assets/0949b7d8-7f3b-4413-84f6-53eb9f19ac74)
 
 - Overview about all plugins managed by alpacka
   - List unmanaged plugins that you might want to get rid off
+  - List lockfile entries that can be deleted
 - Check for new commits available
 - Update plugins to the newest commit
-- See if a plugin's current commit differs from the lockfile
+- See if a plugin's current commit differs from the lockfile (`Lock*`)
   - Restore plugins to their locked state
   - Update the lockfile
+- Show specified plugin ref: `dir`, `commit`, `tag` or `branch`
+  - A trailing asterisk indicates a discrepancy between the spec definition and the current plugin state
 
 ## References
 
