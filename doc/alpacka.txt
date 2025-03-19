@@ -1,0 +1,261 @@
+*alpacka.txt*                                 A simple plugin manager for Neovim
+
+==============================================================================
+INTRODUCTION                                                           *alpacka*
+                                                          *alpacka-introduction*
+
+Alpacka is a simple plugin manager for Neovim build after my own journey and
+experiences with other plugin managers such as `vim-plug`, `packer.nvim` and
+`lazy.nvim`. It is based on the following personal preferences:
+
+- You don't care about lazy loading and startup time optimizations
+- You don't need support for `luarocks`
+- You prioritize determinism and simplicity over raw speed
+
+Features ~
+
+- Leverage Neovim's built-in |packages| system
+- Install and load plugins synchronously
+  - Load exactly in the order of definition
+  - Simple and predictable dependency management
+- Provide hook functions for building, initializing and configuring plugins
+- Includes a lockfile (`alpacka-lock.json`)
+  - Track commits of installed plugins
+  - Sync your state to different machines
+  - Only manual file updates for full control
+
+Non-Features ~
+
+- NO lazy loading functionality
+- NO caching or bytecode compilation
+- NO luarocks support
+
+==============================================================================
+INSTALLATION                                              *alpacka-installation*
+
+NOTE: Make sure you have at least Neovim |:version| `0.10.0` and GIT version
+`2.19.0` (for partial clone support) in order to use `alpacka`.
+
+You can automatically install `alpacka` in your |init.lua| file with the
+following code snippet:
+>lua
+  local alpacka_path = vim.fn.stdpath('data') .. '/site/pack/alpacka/opt/alpacka.nvim'
+  if not vim.uv.fs_stat(alpacka_path) then
+      local out = vim.system({
+          'git',
+          'clone',
+          '--filter=blob:none',
+          'https://github.com/theblob42/alpacka.nvim.git',
+          alpacka_path,
+      }):wait()
+
+      if out.code ~= 0 then
+        print('Error when cloning "alpacka.nvim":\n' .. out.stderr)
+      end
+  end
+
+  -- this line is important so that alpacka is loaded on startup
+  vim.cmd.packadd('alpacka.nvim')
+<
+==============================================================================
+SETUP                                                            *alpacka-setup*
+
+Here is a example setup showcasing all the available possibilities and options
+offered by `alpacka`:
+>lua
+  require('alpacka').setup {
+    -- alpacka can manage itself
+    'theblob42/alpacka.nvim',
+
+    -- simple plugins can be specified as strings
+    'tpope/vim-sleuth',
+
+    -- full git URLs are supported (e.g. for non-Github repositories)
+    'https://github.com/tpope/vim-sensible.git',
+
+    -- define a specific commit that should be checked out
+    {
+      'eraserhd/parinfer-rust',
+      commit = '327fc9a'
+    },
+
+    -- set a git tag that should be checked out
+    {
+      'folke/noice.nvim',
+      tag = 'v4.7.0'
+    },
+
+    -- specify a git branch that should be checked out
+    {
+      'echasnovski/mini.nvim',
+      branch = 'stable'
+    },
+
+    -- local plugins can be loaded as well
+    {
+      'my-local-plugin',
+      dir = '~/Dev/my-local-plugin'
+    },
+
+    -- plugins can have post-install/update hooks
+    {
+      'nvim-treesitter/nvim-treesitter',
+      build = function()
+        vim.cmd('TSUpdate')
+      end
+    },
+
+    -- run lua function before load
+    {
+      'Olical/conjure',
+      init = function()
+        vim.g['conjure#mapping#doc_word'] = 'gk'
+      end
+    },
+
+    -- run lua function after load
+    {
+      'lukas-reineke/indent-blankline.nvim',
+      config = function()
+        require('ibl').setup {}
+      end
+    },
+
+    -- only load plugins if a certain condition is met
+    {
+      'github/copilot.vim',
+      load = function()
+        return vim.env.USER == 'work-laptop'
+      end
+    },
+  }
+<
+==============================================================================
+PLUGIN SPECIFICATION                                       *alpacka-plugin-spec*
+
+Here you find details about all the properties of the `alpacka` plugin
+specification that allow you to fine-tune they way how your plugins are
+installed and loaded.
+
+The first element of any plugin specification is always a `string` that
+defines the GIT URL for the plugin repository. If the plugin is hosted on
+Github this might be a short version in the form of: `<user>/<repository>`
+
+------------------------------------------------------------------------------
+DIR                                                    *alpacka-plugin-spec-dir*
+
+Specify the directory for a local plugin
+
+Local plugins should be managed by you and therefore come with the following
+"restrictions":
+
+- Not added to the lock file
+- The `build` function will be ignored
+- The `branch` property will be ignored
+- Updates have to be done manually
+
+------------------------------------------------------------------------------
+COMMIT, TAG & BRANCH                                *alpacka-plugin-spec-commit*
+                                                       *alpacka-plugin-spec-tag*
+                                                    *alpacka-plugin-spec-branch*
+
+Define a specific reference that should be checked out for a plugin. While
+these are separate properties ONLY ONE of them will be applied in cases
+where you provide more than one. The first item from the following list will
+be used (top to bottom) all others will be ignored:
+
+- `commit`  The specific GIT commit will be checked out
+- `tag`     The specific GIT tag will be checked out
+- `branch`  The specific GIT branch will be checked out
+
+NOTE: If a plugin is already installed simply specifying any of these
+properties will not update it automatically. Either update the plugin manually
+or reinstall it for the desired change to take place
+
+------------------------------------------------------------------------------
+BUILD                                                *alpacka-plugin-spec-build*
+
+Function to trigger after a plugin has either been cloned or updated. Use this
+to download assets, build binaries etc.
+
+- Called after a plugin has been loaded
+  - AFTER the `init` function
+  - BEFORE the `config` function
+- Switches the current working directory temporarily to the plugin folder
+- Receives the plugin name and spec as parameters
+- Updating the plugin via `require('alpacka').update(...)` or the status
+  window will trigger this function again
+  - But only if the update actually changed something
+
+Example ~
+>lua
+  {
+    'iamcco/markdown-preview.nvim',
+    build = function()
+      vim.sytem(
+        { 'yarn', 'install' },
+        { cwd = './app' }) -- build is switching to the plugin directory temporarily
+    end
+  }
+<
+------------------------------------------------------------------------------
+INIT                                                  *alpacka-plugin-spec-init*
+
+Function to setup anything BEFORE a plugin is being loaded. Use this to setup
+global variables or other prerequisites. Receives the plugin name and spec as
+parameters.
+
+------------------------------------------------------------------------------
+CONFIG                                              *alpacka-plugin-spec-config*
+
+Function to setup any configuration AFTER a plugin has been loaded. This is
+the place for setup instructions (usually by calling  a `setup` function),
+creating keybindings and so on. Receives the plugin name and spec as
+parameters.
+
+------------------------------------------------------------------------------
+LOAD                                                  *alpacka-plugin-spec-load*
+
+Function that decides if a plugin should be loaded. Has to return a boolean
+value. Receives the plugin name and spec as parameters.
+
+If the function returns `true` the package will be loaded via |pack-add|. This
+is the default if no `load` function is specified. Otherwise this step will be
+skipped. The installation of a plugin is not influenced by this property.
+
+NOTE: You could use this property to build your own "lazy loading"
+functionality. Just call |:packadd| at any given occasion to load the plugin
+(autocommand, custom user command etc.).
+
+==============================================================================
+USAGE                                                            *alpacka-usage*
+
+Use the `:Alpacka` command to open a status window with more information about
+your configured plugins.
+
+- Overview about all plugins managed by alpacka
+  - List unmanaged plugins that you might want to get rid off
+  - List lockfile entries that can be deleted
+- Check for new commits available
+- Update plugins to the newest commit
+- See if a plugin's current commit differs from the lockfile (`Lock*`)
+  - Restore plugins to their locked state
+  - Update the lockfile
+- Show specified plugin ref: `dir`, `commit`, `tag` or `branch`
+  - A trailing asterisk indicates a discrepancy between the spec definition
+    and the current plugin state
+
+The window also offers keybindings for quick actions such as:
+
+- Check for new commits
+- Update a plugin
+- Update the lock file
+- Restore a plugin to the state of the lock file
+- Open a plugin folder in a new tab
+- Delete an unused plugin
+- Delete unuse entries in the lock file
+
+NOTE: These keybindings are highlighted and documented within the window buffer
+
+==============================================================================
+vim:tw=78:ts=4:ft=help:norl:

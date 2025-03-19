@@ -160,7 +160,7 @@ Function to trigger after a plugin has either been cloned or updated. Use this t
 - Switches the current working directory temporarily to the plugin folder
 - Receives the plugin name and spec as parameters
 - Updating the plugin via `require('alpacka').update(...)` or the status window will trigger this function again
-  - Only if the update actually changed something
+  - But only if the update actually changed something
 
 ```lua
   {
@@ -214,8 +214,3 @@ Use the `:Alpacka` command to open a status window with more information about y
 - [vim-plug](https://github.com/junegunn/vim-plug)
 - [packer.nvim](https://github.com/wbthomason/packer.nvim)
 - [lazy.nvim](https://github.com/folke/lazy.nvim)
-
-## TODO
-
-- [x] Support for git branches and tags
-- [ ] Write help files
