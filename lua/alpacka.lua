@@ -702,9 +702,13 @@ end
 function M.status()
     local info_buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(info_buf, 0, -1, false, gen_alpacka_status())
-    vim.api.nvim_buf_set_option(info_buf, 'syntax', 'alpacka')
-    vim.api.nvim_buf_set_option(info_buf, 'modifiable', false)
-    vim.api.nvim_buf_set_option(info_buf, 'iskeyword', vim.api.nvim_buf_get_option(info_buf, 'iskeyword')..',*')
+    vim.api.nvim_set_option_value('syntax', 'alpacka', { buf = info_buf })
+    vim.api.nvim_set_option_value('modifiable', false, { buf = info_buf })
+
+    -- add '*' as valid keyword character for correct alpacka syntax highlighting
+    local iskeyword = vim.api.nvim_get_option_value('iskeyword', { buf = info_buf })
+    vim.api.nvim_set_option_value('iskeyword', iskeyword .. ',*', { buf = info_buf })
+
     vim.api.nvim_open_win(info_buf, true, {
         relative = 'editor',
         title = ' Alpacka Plugin Overview ',
