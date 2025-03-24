@@ -228,7 +228,39 @@ functionality. Just call |:packadd| at any given occasion to load the plugin
 (autocommand, custom user command etc.).
 
 ==============================================================================
+LOCKFILE                                                      *alpacka-lockfile*
+
+For each managed plugin `alpacka` will save the most recent state in the
+`alpacka-lock.json` file saved in `$XDG_CONFIG_HOME`:
+
+Example: ~
+>json
+  {
+    "alpacka.nvim": { "commit": "f3157b24713216ae2f73820bfda00e005133a6db" },
+    "nvim-cmp": { "commit": "12509903a5723a876abd65953109f926f4634c30" },
+    "nvim-treesitter": { "commit": "13f4346876f394973ff676670304a2b734174538" },
+    "nvim-lspconfig": { "commit": "9962e25a23f0e992116b99a9a6400947d5a7177b" },
+    "houdini.nvim": { "commit": "1b7ec0a713a2aa9965848d8b93f66dc93716fd1c" }
+  }
+<
+When `alpacka` installs a new plugin or finds a plugin that is not registered
+yet its current commit hash will be saved to the lock file automatically.
+Apart from this `alpacka` will *NEVER* modify this file without any user
+input.
+
+The stored commit hash is used by |alpacka-fn-restore| in case you want to
+roll back to a previous state after updating the plugin. Furthermore if you
+refresh your Neovim configuration or set it up on another machine where your
+plugins have not been installed yet, `alpacka` will use the commits from the
+lock file to clone these exact versions. Making sure that the state of your
+plugins will always be exactly the one you saved.
+
+To update the lock file you have to use the |alpacka-fn-lock| function or
+perform the change manually (not recommended).
+
+==============================================================================
 USAGE                                                            *alpacka-usage*
+                                                         *alpacka-status-window*
 
 Use the `:Alpacka` command to open a status window with more information about
 your configured plugins.
@@ -256,6 +288,74 @@ The window also offers keybindings for quick actions such as:
 - Delete unuse entries in the lock file
 
 NOTE: These keybindings are highlighted and documented within the window buffer
+
+==============================================================================
+LUA API                                                        *alpacka-lua-api*
+
+For those that don't like the |alpacka-status-window| or want to build their
+own way of plugin managing keybindings `alpacka` exposes the following lua
+functions via `require('alpacka')`:
+
+setup({plugins})                                              *alpacka-fn-setup*
+  Main function to use `alpacka` for managing plugins. See |alpacka-setup| for
+  a detailed example.
+
+  Parameters: ~
+    • {plugins} List of plugin specifications that should be managed by
+                `alpacka`. See |alpacka-plugin-spec| for more information.
+
+status()                                                     *alpacka-fn-status*
+  Opens the |alpacka-status-window|.
+
+plugins()                                                   *alpacka-fn-plugins*
+  Returns the |alpacka-plugin-spec| for all plugins that are currently managed
+  by `alpacka`.
+
+  Return: ~
+    Map of plugin specifications grouped by plugin name.
+
+update({...})                                                *alpacka-fn-update*
+  Update all given plugins. If none are given this will update *ALL* registered
+  plugins. Updating takes `branch`, `tag` or `commit` specification into
+  consideration.
+
+  Parameters: ~
+    • `{...}` Plugin names that should be updated or nothing to update *ALL*
+            plugins.
+
+restore({...})                                              *alpacka-fn-restore*
+  Restore all given plugins. If none are given this will restore *ALL*
+  registered plugins. The exact version will be taken from the
+  |alpacka-lockfile| and the plugin(s) will be set to the specific commit from
+  there.
+
+  Parameters: ~
+    • `{...}` Plugin names that should be restored or nothing to restore *ALL*
+            plugins to their saved commit.
+
+lock({...})                                                    *alpacka-fn-lock*
+  Lock all given plugins current commit to the |alpacka-lockfile| file. If
+  none are given this will lock *ALL* registered plugins. Whatever version is
+  currently specified in the lock file will be overwritten by this.
+
+  Parameters: ~
+    • `{...}` Plugin names that should be locked or nothing to lock the
+      current commit of *ALL* plugins into the |alpacka-lockfile| file.
+
+delete({plugin})                                             *alpacka-fn-delete*
+  Delete the specific plugin folder from disk. This will ask for user
+  confirmation first before executing the delete operation.
+
+  NOTE: This will not delete any entry from the |alpacka-lockfile|. For this
+        you can use |alpacka-fn-clean-lockfile|.
+
+  Parameters: ~
+    • `{plugin}` The plugin that should be deleted
+
+clean_lockfile()                                     *alpacka-fn-clean-lockfile*
+  Remove "unused" entrys from the |alpacka-lockfile| pointing to plugins that
+  are no longer managed by `alpacka`. Usually this happens after you comment
+  out or remove a plugin specification from the |alpacka-fn-setup| function.
 
 ==============================================================================
 vim:tw=78:ts=4:ft=help:norl:
