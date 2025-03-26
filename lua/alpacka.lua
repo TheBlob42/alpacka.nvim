@@ -497,7 +497,7 @@ function M.setup(plugins)
         local name = get_plugin_name(url)
 
         if spec.load and not spec.load(name, spec) then
-            return
+            goto continue
         end
 
         if spec.dir then
@@ -505,7 +505,7 @@ function M.setup(plugins)
 
             if not vim.uv.fs_lstat(dir) then
                 vim.notify('The provided directory for "'..name..'": "'..spec.dir..'" does not exist!', vim.log.levels.ERROR, {})
-                return
+                goto continue
             end
 
             -- local plugins should not be part of the lockfile
