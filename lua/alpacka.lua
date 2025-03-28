@@ -222,7 +222,7 @@ local function git_clone(url)
     url = get_git_url(url)
 
     local out = vim.system(
-      { 'git', 'clone', '--filter=blob:none', "--recurse-submodules", "--also-filter-submodules", url },
+      { 'git', 'clone', '--filter=blob:none', "--recurse-submodules", url },
       { text = true, cwd = packpath }):wait()
 
     if out.code ~= 0 then
